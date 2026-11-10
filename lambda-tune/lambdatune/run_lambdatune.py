@@ -1,0 +1,141 @@
+import configparser
+import logging
+import argparse
+
+import os
+
+from lambdatune.utils import get_dbms_driver, resolve_model, set_llm, configure_llm, get_llm, detect_cpu_cores, detect_memory_gb
+
+_CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resources", "config.ini")
+
+from lambdatune.benchmarks import get_job_queries, get_tpch_queries, get_tpcds_queries
+from lambdatune.config_selection.configuration_selector import ConfigurationSelector
+
+from lambdatune.prompt_generator.compress_query_plans import get_configurations_with_compression
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Script to run benchmarks.')
+    parser.add_argument('--benchmark', type=str, default='tpch',
+                        help='Name of the benchmark to run. Default is "tpch".')
+    parser.add_argument('--system', type=str, default='POSTGRES',
+                        help='System to use for the benchmark. Default is "POSTGRES".')
+    parser.add_argument('--scenario', type=str, default='original_indexes',
+                        help='Scenario to use for the benchmark. Default is "original_indexes".')
+
+    parser.add_argument("--configs", type=str, help="The LLM configs dir")
+    parser.add_argument("--out", type=str, help="The results output directory")
+
+    parser.add_argument("--config_gen", action="store_true", default=False,
+                        help="Generate new configurations via LLM.")
+
+    parser.add_argument("--cores", type=int, default=None,
+                        help="Number of CPU cores (default: auto-detected).")
+    parser.add_argument("--memory", type=int, default=None,
+                        help="Memory in GB (default: auto-detected).")
+    parser.add_argument("--num-configs", type=int, default=3, dest="num_configs",
+                        help="Number of configurations to generate via LLM (default: 3).")
+    parser.add_argument("--indexes-only", action="store_true", default=False, dest="indexes_only",
+                        help="Generate index recommendations only, skipping system knobs.")
+
+    parser.add_argument("--provider", type=str,
+                        choices=["openai", "anthropic", "ollama", "bedrock"],
+                        help="LLM provider. Overrides config.ini.")
+    parser.add_argument("--model", type=str,
+                        help="Model name or full LiteLLM model string (e.g. gpt-4o, "
+                             "claude-3-5-sonnet-20241022, ollama/mistral). "
+                             "Used together with --provider, or as a fully qualified string on its own.")
+    parser.add_argument("--api-key", type=str, dest="api_key",
+                        help="API key for the selected provider. "
+                             "Falls back to environment variables and config.ini if omitted.")
+
+    args = parser.parse_args()
+
+    llm_configs_dir = args.configs
+    output_dir = args.out
+    benchmark = args.benchmark
+    system = args.system
+    config_gen = args.config_gen
+
+    cores = args.cores or detect_cpu_cores()
+    memory = args.memory or detect_memory_gb()
+    print(f"System: {cores} cores, {memory} GB RAM")
+
+    if __import__("os").getenv("LT_DEBUG"): print(f"\n>>> BP 3.0-H | ĐẦU VÀO H (phần cứng) | cores = {cores} | memory = {memory} GB  --> sẽ ghi vào prompt\n"); breakpoint()  # DEBUG-BP 3.0  Đầu vào H: cores, memory
+    # Resolve LLM model — CLI args override config.ini
+    if args.provider or args.model:
+        if args.provider:
+            model_str = resolve_model(args.provider, args.model)
+        else:
+            model_str = args.model  # fully qualified string like "anthropic/claude-3-5-sonnet-20241022"
+        set_llm(model_str)
+        logging.info(f"LLM overridden via CLI: {model_str}")
+
+    configure_llm(api_key=args.api_key)
+
+    # Parse config file
+    config_parser = configparser.ConfigParser()
+    f = _CONFIG_PATH
+    config_parser.read(f)
+
+    scenario = "original_indexes"
+
+    enable_query_scheduler = True
+    adaptive_timeout = True
+    create_indexes = True
+    drop_indexes = True
+    create_all_indexes_first = False
+    compressor = True
+    no_queries_in_prompt = False
+
+    logging.info(f"LLM Config Dir: {llm_configs_dir}")
+
+    driver = get_dbms_driver(system, db=benchmark)
+    queries = None
+
+    if benchmark == "tpch": queries = get_tpch_queries()
+    elif benchmark == "tpcds": queries = get_tpcds_queries()
+    elif benchmark == "job": queries = get_job_queries()
+    else:
+        raise Exception("Benchmark {} does not exist. Pick one from {tpch, tpcds, job}"%(benchmark))
+
+    if __import__("os").getenv("LT_DEBUG"): print(f"\n>>> BP 3.0-WD | ĐẦU VÀO W (workload) và D (DBMS) | len(queries) = {len(queries)} query | benchmark = {benchmark} | system = {system} | config_gen = {config_gen}\n"); breakpoint()  # DEBUG-BP 3.0  Đầu vào W, D: queries, system
+    if config_gen:
+        print(f"Generating configs via LLM ({get_llm()}) into: {llm_configs_dir}")
+        get_configurations_with_compression(output_dir_path=llm_configs_dir,
+                                            driver=driver,
+                                            queries=queries,
+                                            target_db=system.lower(),
+                                            benchmark=benchmark,
+                                            memory_gb=memory,
+                                            num_cores=cores,
+                                            num_configs=args.num_configs,
+                                            indexes_only=args.indexes_only)
+        print("Config generation complete.")
+    else:
+        print(f"Skipping config generation (pass --config_gen to enable).")
+
+    timeouts = [10]
+
+    configurations = ConfigurationSelector.load_configs(llm_configs_dir, system=system)
+
+    if __import__("os").getenv("LT_DEBUG"): print(f"\n>>> BP#8 | NẠP CẤU HÌNH để đánh giá | len(configurations) = {len(configurations)} cấu hình\n    " + "\n    ".join(sorted(configurations)) + "\n"); breakpoint()  # DEBUG-BP #8  3.3 Nạp 5 cấu hình: configurations
+    for timeout in timeouts:
+        selector = ConfigurationSelector(configs=configurations,
+                                         driver=driver,
+                                         queries=queries,
+                                         enable_query_scheduler=True,
+                                         create_all_indexes_first=False,
+                                         create_indexes=True,
+                                         drop_indexes=True,
+                                         reset_command="ALTER SYSTEM RESET ALL;",
+                                         initial_time_out_seconds=timeout,
+                                         timeout_interval=10,
+                                         max_rounds=5,
+                                         benchmark_name=benchmark,
+                                         system=system,
+                                         adaptive_timeout=adaptive_timeout,
+                                         output_dir=output_dir
+                                         )
+
+        selector.select_configuration()

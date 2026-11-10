@@ -1,0 +1,139 @@
+# λ-Tune
+The source code of λ-Tune: A Database System Tuning framework based on Large Language Models.
+
+λ-Tune was presented at ACM SIGMOD 2025, Berlin, Germany.
+
+Paper Link: https://dl.acm.org/doi/10.1145/3709652
+
+## Prerequisites
+Ensure you have Python installed on your system. The script is written in Python and requires necessary permissions to
+execute.
+
+### Database System
+Provide the credentials of the target database system (Postgres or MySQL) in `lambdatune/resources/config.ini`:
+
+```ini
+[LAMBDA_TUNE]
+llm = gpt-4
+openai_key = <your-openai-key>
+anthropic_key =          ; optional — for Anthropic models
+
+[POSTGRES]
+user = <your-pg-user>
+```
+
+> **Note:** `config.ini` is gitignored and will never be committed.
+
+### Install Dependencies
+#### MacOS
+
+```bash
+brew install pkg-config mysql-client
+export PKG_CONFIG_PATH="/opt/homebrew/opt/mysql-client/lib/pkgconfig"
+
+virtualenv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+## Usage
+
+```bash
+PYTHONPATH=$PWD python lambdatune/run_lambdatune.py --configs $CONFIGS_DIR --out $OUTPUT_FOLDER --system $DBMS
+```
+
+Where `$CONFIGS_DIR` is the folder with LLM-generated configurations, `$OUTPUT_FOLDER` is where benchmark results are
+saved, and `$DBMS` is the database system to tune (`POSTGRES` or `MYSQL`).
+
+### Arguments
+
+```
+--benchmark BENCHMARK     Benchmark to run: tpch (default), tpcds, job
+--system SYSTEM           Database system: POSTGRES (default), MYSQL
+--configs CONFIGS         Path to configs dir, or new dir name when using --config_gen
+--out OUT                 Results output directory
+--config_gen              Generate new configurations via LLM
+--num-configs N           Number of configurations to generate (default: 3)
+--indexes-only            Generate index recommendations only, skip system knobs
+--cores CORES             Number of CPU cores (default: auto-detected)
+--memory MEMORY           Amount of memory in GB (default: auto-detected)
+
+--provider PROVIDER       LLM provider: openai (default), anthropic, ollama, bedrock
+--model MODEL             Model name or full LiteLLM string (see examples below)
+--api-key API_KEY         API key for the provider (overrides config.ini and env vars)
+```
+
+### LLM Providers
+
+λ-Tune uses [LiteLLM](https://github.com/BerriAI/litellm) and supports any provider it covers.
+The `--provider` and `--model` flags override `config.ini` at runtime.
+
+| Provider       | `--provider` | `--model`                       | Auth                                      |
+| -------------- | ------------ | ------------------------------- | ----------------------------------------- |
+| OpenAI         | `openai`     | `gpt-4o`, `gpt-4`               | `OPENAI_API_KEY` or `openai_key` in config.ini |
+| Anthropic      | `anthropic`  | `claude-sonnet-4-6`             | `ANTHROPIC_API_KEY` or `anthropic_key` in config.ini |
+| Ollama (local) | `ollama`     | `llama3`, `mistral`             | None                                      |
+| AWS Bedrock    | `bedrock`    | `anthropic.claude-sonnet-4-5`  | AWS env vars                              |
+
+You can also pass a fully qualified LiteLLM model string directly via `--model` without `--provider`:
+```bash
+--model anthropic/claude-sonnet-4-6
+```
+
+### Examples
+
+1. Run TPC-H over Postgres using an existing configuration directory:
+    ```bash
+    PYTHONPATH=$PWD python lambdatune/run_lambdatune.py \
+      --configs ./lambdatune/configs/tpch_postgres_1 \
+      --out ./test \
+      --system POSTGRES
+    ```
+
+2. Generate new configurations via OpenAI and run the Join Order Benchmark:
+    ```bash
+    PYTHONPATH=$PWD python lambdatune/run_lambdatune.py \
+      --configs new_config --out ./test \
+      --system POSTGRES --benchmark job \
+      --config_gen --num-configs 5
+    ```
+
+3. Use Anthropic Claude instead of OpenAI:
+    ```bash
+    PYTHONPATH=$PWD python lambdatune/run_lambdatune.py \
+      --configs new_config --out ./test \
+      --system POSTGRES --config_gen \
+      --provider anthropic --model claude-sonnet-4-6 \
+      --api-key $ANTHROPIC_API_KEY
+    ```
+
+4. Use a local Ollama model (no API key required):
+    ```bash
+    PYTHONPATH=$PWD python lambdatune/run_lambdatune.py \
+      --configs new_config --out ./test \
+      --system POSTGRES --config_gen \
+      --provider ollama --model llama3
+    ```
+
+5. Generate index recommendations only (no system knobs):
+    ```bash
+    PYTHONPATH=$PWD python lambdatune/run_lambdatune.py \
+      --configs new_config --out ./test \
+      --system POSTGRES --config_gen --indexes-only
+    ```
+
+## Citation
+```bibtex
+@article{giannakouris2025lambda,
+  title={$\lambda$-tune: Harnessing large language models for automated database system tuning},
+  author={Giannakouris, Victor and Trummer, Immanuel},
+  journal={Proceedings of the ACM on Management of Data},
+  volume={3},
+  number={1},
+  pages={1--26},
+  year={2025},
+  publisher={ACM New York, NY, USA}
+}
+```
+
+

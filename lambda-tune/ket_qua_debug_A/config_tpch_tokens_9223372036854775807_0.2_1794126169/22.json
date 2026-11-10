@@ -1,0 +1,5 @@
+{
+  "execTime": 128.22699546813965,
+  "config": null,
+  "plan": "Limit  (cost=17978.16..17978.19 rows=1 width=72)\n  InitPlan 1 (returns $0)\n    ->  Aggregate  (cost=7534.42..7534.43 rows=1 width=32)\n          ->  Seq Scan on customer customer_1  (cost=0.00..7522.50 rows=4768 width=6)\n                Filter: ((c_acctbal > 0.00) AND (\"substring\"((c_phone)::text, 1, 2) = ANY ('{10,14,11,30,29,21,12}'::text[])))\n  ->  GroupAggregate  (cost=10443.73..10462.12 rows=669 width=72)\n        Group Key: (\"substring\"((customer.c_phone)::text, 1, 2))\n        ->  Sort  (cost=10443.73..10445.40 rows=669 width=38)\n              Sort Key: (\"substring\"((customer.c_phone)::text, 1, 2))\n              ->  Nested Loop Anti Join  (cost=0.43..10412.33 rows=669 width=38)\n                    ->  Seq Scan on customer  (cost=0.00..7522.50 rows=1750 width=26)\n                          Filter: ((c_acctbal > $0) AND (\"substring\"((c_phone)::text, 1, 2) = ANY ('{10,14,11,30,29,21,12}'::text[])))\n                    ->  Index Only Scan using concurrently_0 on orders  (cost=0.43..13.07 rows=16 width=4)\n                          Index Cond: (o_custkey = customer.c_custkey)"
+}

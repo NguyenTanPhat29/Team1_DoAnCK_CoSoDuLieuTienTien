@@ -1,0 +1,5 @@
+{
+  "execTime": 169.60406303405762,
+  "config": null,
+  "plan": "Limit  (cost=141469.35..141469.37 rows=1 width=32)\n  ->  Finalize Aggregate  (cost=141469.35..141469.37 rows=1 width=32)\n        ->  Gather  (cost=141469.18..141469.31 rows=4 width=64)\n              Workers Planned: 4\n              ->  Partial Aggregate  (cost=141369.18..141369.19 rows=1 width=64)\n                    ->  Parallel Hash Join  (cost=5972.00..141030.37 rows=19360 width=33)\n                          Hash Cond: (lineitem.l_partkey = part.p_partkey)\n                          ->  Parallel Seq Scan on lineitem  (cost=0.00..135007.56 rows=19360 width=16)\n                                Filter: ((l_shipdate >= '1994-07-01'::date) AND (l_shipdate < '1994-08-01 00:00:00'::timestamp without time zone))\n                          ->  Parallel Hash  (cost=4930.33..4930.33 rows=83333 width=25)\n                                ->  Parallel Seq Scan on part  (cost=0.00..4930.33 rows=83333 width=25)\nJIT:\n  Functions: 18\n  Options: Inlining false, Optimization false, Expressions true, Deforming true"
+}

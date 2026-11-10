@@ -1,0 +1,86 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "A. Debug toàn bộ: 3.1 → 3.2 (sinh 5 cấu hình mới) → 3.3",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/lambdatune/run_lambdatune.py",
+      "python": "/Users/phatnguyen/miniconda3/envs/lambdatune_env/bin/python",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}",
+        "LT_DEBUG": "1",
+        "PGHOST": "127.0.0.1",
+        "PGPORT": "5432"
+      },
+      "args": [
+        "--configs",
+        "./cau_hinh_debug",
+        "--out",
+        "./ket_qua_debug_A",
+        "--system",
+        "POSTGRES",
+        "--benchmark",
+        "tpch",
+        "--config_gen",
+        "--num-configs",
+        "5"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "B. Debug 3.3 (chọn cấu hình, dùng lại 5 cấu hình đã sinh)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/lambdatune/run_lambdatune.py",
+      "python": "/Users/phatnguyen/miniconda3/envs/lambdatune_env/bin/python",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}",
+        "LT_DEBUG": "1",
+        "PGHOST": "127.0.0.1",
+        "PGPORT": "5432"
+      },
+      "args": [
+        "--configs",
+        "./cau_hinh_ung_vien",
+        "--out",
+        "./ket_qua_debug_B",
+        "--system",
+        "POSTGRES",
+        "--benchmark",
+        "tpch"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "C. Debug 3.3 trên 5 cấu hình mới trong cau_hinh_debug (không gọi LLM lại)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/lambdatune/run_lambdatune.py",
+      "python": "/Users/phatnguyen/miniconda3/envs/lambdatune_env/bin/python",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}",
+        "LT_DEBUG": "1",
+        "PGHOST": "127.0.0.1",
+        "PGPORT": "5432"
+      },
+      "args": [
+        "--configs",
+        "./cau_hinh_debug",
+        "--out",
+        "./ket_qua_debug_A",
+        "--system",
+        "POSTGRES",
+        "--benchmark",
+        "tpch"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    }
+  ]
+}

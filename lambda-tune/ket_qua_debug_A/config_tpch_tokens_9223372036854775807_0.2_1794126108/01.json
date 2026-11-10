@@ -1,0 +1,5 @@
+{
+  "execTime": 1065.3939247131348,
+  "config": null,
+  "plan": "Limit  (cost=191100.14..191100.60 rows=1 width=236)\n  ->  Finalize GroupAggregate  (cost=191100.14..191102.94 rows=6 width=236)\n        Group Key: l_returnflag, l_linestatus\n        ->  Gather Merge  (cost=191100.14..191101.75 rows=24 width=236)\n              Workers Planned: 4\n              ->  Sort  (cost=190600.08..190600.09 rows=6 width=236)\n                    Sort Key: l_returnflag, l_linestatus\n                    ->  Partial HashAggregate  (cost=190599.84..190600.00 rows=6 width=236)\n                          Group Key: l_returnflag, l_linestatus\n                          ->  Parallel Seq Scan on lineitem  (cost=0.00..131256.80 rows=1483576 width=25)\n                                Filter: (l_shipdate <= '1998-09-12 00:00:00'::timestamp without time zone)\nJIT:\n  Functions: 10\n  Options: Inlining false, Optimization false, Expressions true, Deforming true"
+}
